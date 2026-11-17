@@ -322,7 +322,7 @@
         el('b', { text: 'category multiple' }),
         ' x (1 + clamp(change_7d, ' + m.growth_floor + ', ' + m.growth_cap + ') / 100 x ' + m.growth_weight + ') x (' + m.maturity_floor + ' + min(age_days, ' + m.maturity_days + ') / ' + m.maturity_days + ' x ' + m.maturity_range + ') )'
       ),
-      el('p', { class: 'sub', text: 'TVL and seven-day growth come from the snapshot. Age is the time since the protocol was first listed, the best record of how long it has run with no token; an unlisted age uses ' + m.unknown_age_days + ' days. A category with fewer than ' + m.min_peers + ' trading peers uses the snapshot-wide median multiple of ' + DATA.global_multiple + '. The early radar is every pre-token protocol below the watchlist floor, by TVL, and the live-token protocols are set aside with their market caps shown.' }),
+      el('p', { class: 'sub', text: 'TVL and seven-day growth come from the snapshot. Age is the time since the protocol was first listed, the best record of how long it has run with no token; an unlisted age uses ' + m.unknown_age_days + ' days. A category with fewer than ' + m.min_peers + ' trading peers uses the snapshot-wide median multiple of ' + DATA.global_multiple + '. The early radar is every pre-token protocol below the watchlist floor, chosen by implied value, and the live-token protocols are set aside with their market caps shown.' }),
       el('div', { class: 'bench-grid' }, benchEntries.map(function (cat) {
         var b = DATA.benchmarks[cat];
         return el('div', { class: 'bench' },

@@ -14,8 +14,8 @@
 //      category's own multiple: what the market already pays for a dollar of
 //      TVL in this kind of protocol. A pre-token protocol is then worth its
 //      TVL times its category's multiple. A category with fewer than three
-//      trading peers falls back to the whole snapshot's median multiple, so
-//      no protocol is scored on a single peer. The multiple is clamped to
+//      trading peers falls back to the snapshot-wide median multiple, so no
+//      protocol is scored on a single peer. The multiple is clamped to
 //      [0.05, 1.5] so one outlier peer cannot stretch a whole category.
 //      Nothing here is hardcoded: the multiples are computed from the
 //      snapshot at build time, and the same function scores every row.
@@ -33,8 +33,9 @@
 //   implied = round( tvl_usd x categoryMultiple x growthMult x maturityMult )
 //
 // The board covers every slug on the snapshot's watchlist (the floor, never
-// the ceiling) and adds pre-token protocols below the floor, by TVL, up to
-// EARLY_ROWS of them. Protocols whose token already trades are kept apart:
+// the ceiling) and adds pre-token protocols below the floor, chosen by
+// implied value so a smaller protocol growing fast outranks a larger one
+// standing still. Protocols whose token already trades are kept apart:
 // they are shown in the dashboard's Live view at their market cap, never
 // mixed into the ranked board, because a market cap is a fact and an
 // implied value is a model.
@@ -220,8 +221,9 @@ export function ageDays(asOf: string, listedAt: string | null): number | null {
  * The category benchmarks, computed from the snapshot's own trading
  * protocols: for each category, the median market-cap-to-TVL ratio of its
  * protocols whose token already trades. Categories with fewer than
- * `min_peers` trading peers fall back to the snapshot-wide median. Every
- * multiple is clamped to [multiple_floor, multiple_cap].
+ * `min_peers` trading peers fall back to the snapshot-wide median: one or
+ * two peers cannot set a whole category's price, and a lone peer is often
+ * an outlier. Every multiple is clamped to [multiple_floor, multiple_cap].
  */
 export function categoryBenchmarks(protocols: SnapshotProtocol[], model: ModelConstants): { byCategory: Map<string, CategoryBenchmark>; global: number } {
   const byCategory = new Map<string, number[]>();
@@ -301,12 +303,16 @@ export function buildBoard(snapshot: Snapshot, model: ModelConstants = MODEL): B
     const p = index.get(slug);
     if (p !== undefined) chosen.set(slug, p);
   }
-  // The early radar: pre-token protocols below the watchlist floor, by TVL, capped.
+  // The early radar: pre-token protocols below the watchlist floor, chosen
+  // by implied value, not by TVL alone, so a smaller protocol growing fast
+  // outranks a larger one standing still. Never a replacement for a
+  // watchlist row: a chosen protocol stays chosen.
   const early = snapshot.protocols
     .filter((p) => !chosen.has(p.slug) && isRankable(p) && p.tvl_usd < snapshot.floor_usd)
-    .sort((a, b) => b.tvl_usd - a.tvl_usd || (a.slug < b.slug ? -1 : a.slug > b.slug ? 1 : 0))
+    .map((p) => ({ p, implied: impliedValue(p, snapshot.as_of, model, benchmarks).implied }))
+    .sort((a, b) => b.implied - a.implied || (a.p.slug < b.p.slug ? -1 : a.p.slug > b.p.slug ? 1 : 0))
     .slice(0, EARLY_ROWS);
-  for (const p of early) chosen.set(p.slug, p);
+  for (const e of early) chosen.set(e.p.slug, e.p);
 
   const scored = [...chosen.values()].map((p) => {
     const v = impliedValue(p, snapshot.as_of, model, benchmarks);
